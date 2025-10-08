@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+
+import os
+import random
+import sys
+
+# Curated color palette
+COLORS = {
+    # From color perl script
+    "jira-blue": "205081",
+    "grey-silver": "707070",
+    "dark-grey": "333333",
+    "medium-grey": "737373",
+    "forest-green": "14892c",
+    "slate-blue": "657b83",
+    "red": "d04437",
+    "tan-peru": "CD853F",
+    "chocolate": "D2691E",
+    "saddle-brown": "8B4513",
+    "sienna": "A0522D",
+    "brown-firebrick": "A52A2A",
+    "turquoise": "1ABC9C",
+    "emerald-green": "2ECC71",
+    "bright-blue": "3498DB",
+    "wet-asphalt": "34495E",
+    "green-sea": "16A085",
+    "nephritis-green": "27AE60",
+    "belize-blue": "2980B9",
+    "midnight-blue": "2C3E50",
+    "asbestos-grey": "7F8C8D",
+    "dark-slate": "34465D",
+    "ocean-blue": "21759B",
+    "linkedin-blue": "0077B5",
+    "cool-grey": "647687",
+    "dracula": "282A36",
+    "gruvbox-dark": "282828",
+    "nord": "2e3440",
+    "monokai": "272822",
+    "solarized-dark": "002b36",
+    # Popular Gogh theme backgrounds
+    "sage-grey": "758480",
+    "night-owl": "011627",
+}
+
+def generate_preview():
+    """Generate an HTML preview of all colors"""
+    html = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>rc2 Color Palette</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+        }
+        .swatch {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .swatch:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .color-box {
+            height: 120px;
+            width: 100%;
+        }
+        .color-info {
+            padding: 15px;
+        }
+        .color-hex {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .color-name {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>rc2 Color Palette</h1>
+    <div class="container">
+"""
+
+    for name, color_hex in COLORS.items():
+        html += f"""        <div class="swatch">
+            <div class="color-box" style="background-color: #{color_hex};"></div>
+            <div class="color-info">
+                <div class="color-hex">#{color_hex.upper()}</div>
+                <div class="color-name">{name}</div>
+            </div>
+        </div>
+"""
+
+    html += """    </div>
+</body>
+</html>
+"""
+
+    with open("preview.html", "w") as f:
+        f.write(html)
+
+    print("Generated preview.html")
+
+def set_terminal_color(color_hex):
+    """Set the terminal background color"""
+    # Convert hex to RGB values (0-65535 range for AppleScript)
+    r = int(color_hex[0:2], 16) * 257
+    g = int(color_hex[2:4], 16) * 257
+    b = int(color_hex[4:6], 16) * 257
+    transparency = -5000
+
+    # AppleScript to set Terminal background color
+    script = f"""
+tell application "terminal"
+	tell window 1 to set background color to {{{r}, {g}, {b}, {transparency}}}
+end tell
+"""
+
+    p = os.popen("/usr/bin/osascript", "w")
+    p.write(script)
+    p.close()
+
+# Check for preview argument
+if len(sys.argv) > 1 and sys.argv[1] == "preview":
+    generate_preview()
+    sys.exit(0)
+
+# Check if a color name was specified
+if len(sys.argv) > 1:
+    color_name = sys.argv[1]
+    if color_name in COLORS:
+        color_hex = COLORS[color_name]
+        set_terminal_color(color_hex)
+    else:
+        print(f"Error: Unknown color '{color_name}'")
+        print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+        sys.exit(1)
+else:
+    # Pick a random color
+    color_name = random.choice(list(COLORS.keys()))
+    color_hex = COLORS[color_name]
+    set_terminal_color(color_hex)

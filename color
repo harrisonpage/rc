@@ -1,0 +1,119 @@
+#!/usr/bin/perl
+#
+# http://singletrack.org/~randal/blog/2003/12/26/fun-with-applescript-terminal-and-droplets/
+# http://www.macosxhints.com/article.php?story=20050920183403172
+# http://stackoverflow.com/questions/29054808/how-is-color-handled-in-applescript
+#
+
+use strict;
+use warnings;
+use Data::Dumper;
+
+sub hex2rgb ($)
+{
+	my $arg = shift;
+    my ($r, $g, $b) = $arg =~ m/(\w{2})(\w{2})(\w{2})/;
+
+    my @rgb = ();
+    $rgb[0] = CORE::hex($r) * 257;
+    $rgb[1] = CORE::hex($g) * 257;
+    $rgb[2] = CORE::hex($b) * 257;
+	return @rgb;
+}
+
+my $osascript = "/usr/bin/osascript";
+
+my %aliases;
+
+my %colours =
+(
+	'jira' => [ 32 * 257, 80 * 257, 129 * 257, -5000 ], #205081 https://design.atlassian.com/product/foundations/colors/
+	'mars' => [ 14506, 4903, 322, -5000 ],
+    'grey0' => [ 8056, 9065, 11859, -5000 ],
+    'grey1' => [ 7226, 9257, 10239, -5000 ],
+    'grey2' => [ '707070' ],
+    'grey3' => [ '333333' ],
+    'grey4' => [ '737373' ],
+    'grey5' => [ 2789, 6330, 7247, -5000 ],
+    'green0' => [ 9201, 18358, 5997, -5000 ],
+    'green1' => [ 6472, 11521, 11368, -5000 ],
+    'green2' => [ 4516, 16427, 13872, -5000 ],
+	'green3' => [ '14892c' ],
+    'blue0' => [ 2486, 7647, 21416, -5000 ],
+    'blue1' => [ 2912, 10861, 18800, -5000 ],
+    'blue2' => [ '5DC6F5' ],
+	'blue3' => [ '657b83' ],
+    'black' => [ 0, 0, 0, -5000 ],
+	'yellow' => [ 'b58900' ],
+	'red0' => [ 'd04437' ],
+	'red1' => [ 'FF0028' ],
+	'silver' => [ '707070' ],
+	'brown0' => [ 'CD853F' ],
+	'brown1' => [ 'D2691E' ],
+	'brown2' => [ '8B4513' ],
+	'brown3' => [ 'A0522D' ],
+	'brown4' => [ 'A52A2A' ],
+);
+
+foreach my $color (keys %colours)
+{
+	my $wot = substr($color, -1, 1);
+	if ($wot =~ m#^\d+#)
+	{
+		$aliases{substr($color, 0, length($color)-1)} = 1;
+	}
+}
+
+my $arg = shift || "";
+
+if (exists ($aliases{$arg}))
+{
+    my @choices;
+    foreach my $color (keys %colours)
+    {
+        if (substr ($color, 0, length ($arg)) eq $arg)
+        {
+            push @choices, $color;
+        }
+    }
+    if ($#choices != -1)
+    {
+        $arg = $choices[rand $#choices];
+    }
+}
+elsif ($arg =~ m#^[A-F0-9]{6}$#i)
+{
+	my @rgb = hex2rgb ($arg);
+	colour($arg, $rgb[0], $rgb[1], $rgb[2], -5000);
+	exit;
+}
+
+if (! exists $colours{$arg})
+{
+    print "Usage: $0 [ " . (join " | ", sort keys %colours) . " ]\n";
+    exit();
+}
+
+if ($#{$colours{$arg}} == 0)
+{
+	my @rgb = hex2rgb ($colours{$arg}[0]);
+	colour($arg, $rgb[0], $rgb[1], $rgb[2], -5000);
+	exit;
+}
+
+colour ($arg, @{$colours{$arg}});
+
+sub colour
+{
+	my ($host, $r, $g, $b, $transparency) = @_;
+
+	my $applescript = <<FIN;
+tell application "terminal"
+  tell window 1 to set background color to {$r, $g, $b, $transparency}
+  end tell
+FIN
+	open FILE, "|$osascript" || die $!;
+	print FILE $applescript;
+	close FILE;
+}
+

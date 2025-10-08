@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import random
+import math
+import pprint
+
+maxr = .35
+minr = .15
+quad =  70
+
+def spherical2rect(r,phi,theta):
+	phi   = (math.pi/180)*phi
+	theta = (math.pi/180)*theta
+	return (r*math.sin(phi)*math.cos(theta),r*math.sin(phi)*math.sin(theta),r*math.cos(phi))
+
+# Generate a random location in the +++ spherical octant
+
+r     = random.random()*(maxr-minr) + minr
+phi   = random.random()*quad + (90-quad)/2 + 10
+theta = random.random()*quad + (90-quad)/2
+
+(x,y,z) = spherical2rect(r,phi,theta)
+
+
+v1 = int(65535*x)
+v2 = int(65535*y)
+v3 = int(65535*z)
+transparency=-5000
+
+s = """
+tell application "terminal"
+	tell window 1 to set background color to {%d, %d, %d, %d}
+end tell
+""" % (v1,v2,v3,transparency)
+
+p = os.popen("/usr/bin/osascript","w")
+p.write(s)
+p.close()
+
+# pprint.pprint (s)
