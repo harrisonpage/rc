@@ -114,6 +114,17 @@ def generate_preview():
         .color-box {
             height: 120px;
             width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .preview-text {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            text-align: center;
+            line-height: 1.5;
         }
         .color-info {
             padding: 15px;
@@ -137,8 +148,17 @@ def generate_preview():
 """
 
     for name, color_hex in COLORS.items():
+        # Get the appropriate text color
+        text_color = get_contrasting_text_color(color_hex)
+
         html += f"""        <div class="swatch">
-            <div class="color-box" style="background-color: #{color_hex};"></div>
+            <div class="color-box" style="background-color: #{color_hex};">
+                <div class="preview-text" style="color: #{text_color};">
+$ ls -la<br>
+total 42<br>
+drwxr-xr-x
+                </div>
+            </div>
             <div class="color-info">
                 <div class="color-hex">#{color_hex.upper()}</div>
                 <div class="color-name">{name}</div>

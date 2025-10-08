@@ -7,6 +7,12 @@ rc2 is an upgrade:
 * 'rc2 preview' generates preview.html 
 * 'rc2 green-sea' applies a named color
 
+## shortcuts
+
+```bash
+./rc2 preview && open preview.html
+```
+
 ## historical shit
 
 * `rc` is the original perl script
