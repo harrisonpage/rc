@@ -6,40 +6,75 @@ import sys
 
 # Curated color palette
 COLORS = {
-    # From color perl script
+    # Blues
     "jira-blue": "205081",
-    "grey-silver": "707070",
-    "dark-grey": "333333",
-    "medium-grey": "737373",
-    "forest-green": "14892c",
     "slate-blue": "657b83",
-    "red": "d04437",
-    "tan-peru": "CD853F",
-    "chocolate": "D2691E",
-    "saddle-brown": "8B4513",
-    "sienna": "A0522D",
-    "brown-firebrick": "A52A2A",
-    "turquoise": "1ABC9C",
-    "emerald-green": "2ECC71",
     "bright-blue": "3498DB",
-    "wet-asphalt": "34495E",
-    "green-sea": "16A085",
-    "nephritis-green": "27AE60",
     "belize-blue": "2980B9",
     "midnight-blue": "2C3E50",
-    "asbestos-grey": "7F8C8D",
-    "dark-slate": "34465D",
     "ocean-blue": "21759B",
     "linkedin-blue": "0077B5",
+    "night-owl-blue": "011627",
+
+    # Greens
+    "forest-green": "14892c",
+    "emerald-green": "2ECC71",
+    "green-sea": "16A085",
+    "nephritis-green": "27AE60",
+    "turquoise-green": "1ABC9C",
+
+    # Greys
+    "silver-grey": "707070",
+    "dark-grey": "333333",
+    "medium-grey": "737373",
+    "asbestos-grey": "7F8C8D",
+    "wet-asphalt-grey": "34495E",
+    "dark-slate-grey": "34465D",
     "cool-grey": "647687",
-    "dracula": "282A36",
-    "gruvbox-dark": "282828",
-    "nord": "2e3440",
-    "monokai": "272822",
-    "solarized-dark": "002b36",
-    # Popular Gogh theme backgrounds
     "sage-grey": "758480",
-    "night-owl": "011627",
+
+    # Browns
+    "tan-brown": "CD853F",
+    "chocolate-brown": "D2691E",
+    "saddle-brown": "8B4513",
+    "sienna-brown": "A0522D",
+    "firebrick-brown": "A52A2A",
+
+    # Reds
+    "red": "d04437",
+    "red-alert": "762423",
+    "red-sands": "79251D",
+
+    # Purples/Pinks
+    "unikitty-pink": "FC71D0",
+
+    # Yellows
+    "yellow": "b58900",
+    "man-page-yellow": "FEF49C",
+
+    # Light/Cream
+    "belafonte-day": "D4CCB9",
+    "novel-cream": "DFDAC3",
+
+    # Terminal themes (dark greys/blacks)
+    "dracula-grey": "282A36",
+    "gruvbox-grey": "282828",
+    "nord-grey": "2e3440",
+    "monokai-grey": "272822",
+    "solarized-grey": "002b36",
+    "mariana-grey": "252E36",
+    "seafoam-grey": "243335",
+    "argonaut-grey": "0D0F18",
+    "alucard-grey": "1A1A24",
+    "belafonte-night-purple": "20111A",
+    "fishtank-blue": "073F80",
+    "ocean-blue-dark": "214EBC",
+    "borland-blue": "0000A3",
+    "grass-green": "13773D",
+    "moss-green": "107F40",
+    "lime-black": "0E100A",
+    "monoliisa-black": "110B0D",
+    "zenburn-grey": "3F3F3F",
 }
 
 def generate_preview():
@@ -121,18 +156,53 @@ def generate_preview():
 
     print("Generated preview.html")
 
+def calculate_luminance(color_hex):
+    """Calculate relative luminance of a color (0-1 scale)"""
+    # Convert hex to RGB
+    r = int(color_hex[0:2], 16) / 255
+    g = int(color_hex[2:4], 16) / 255
+    b = int(color_hex[4:6], 16) / 255
+
+    # Apply gamma correction
+    def adjust(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r = adjust(r)
+    g = adjust(g)
+    b = adjust(b)
+
+    # Calculate luminance (weighted sum)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+def get_contrasting_text_color(bg_color_hex):
+    """Returns 'black' or 'white' based on background luminance"""
+    luminance = calculate_luminance(bg_color_hex)
+    # If background is bright (luminance > 0.5), use black text
+    # Otherwise use white text
+    return "000000" if luminance > 0.5 else "FFFFFF"
+
 def set_terminal_color(color_hex):
-    """Set the terminal background color"""
+    """Set the terminal background and appropriate foreground color"""
     # Convert hex to RGB values (0-65535 range for AppleScript)
-    r = int(color_hex[0:2], 16) * 257
-    g = int(color_hex[2:4], 16) * 257
-    b = int(color_hex[4:6], 16) * 257
+    bg_r = int(color_hex[0:2], 16) * 257
+    bg_g = int(color_hex[2:4], 16) * 257
+    bg_b = int(color_hex[4:6], 16) * 257
+
+    # Get contrasting text color
+    fg_color = get_contrasting_text_color(color_hex)
+    fg_r = int(fg_color[0:2], 16) * 257
+    fg_g = int(fg_color[2:4], 16) * 257
+    fg_b = int(fg_color[4:6], 16) * 257
+
     transparency = -5000
 
-    # AppleScript to set Terminal background color
+    # AppleScript to set both background and text color
     script = f"""
 tell application "terminal"
-	tell window 1 to set background color to {{{r}, {g}, {b}, {transparency}}}
+	tell window 1
+		set background color to {{{bg_r}, {bg_g}, {bg_b}, {transparency}}}
+		set normal text color to {{{fg_r}, {fg_g}, {fg_b}, {transparency}}}
+	end tell
 end tell
 """
 
@@ -145,18 +215,40 @@ if len(sys.argv) > 1 and sys.argv[1] == "preview":
     generate_preview()
     sys.exit(0)
 
+color_name = None
+
 # Check if a color name was specified
 if len(sys.argv) > 1:
-    color_name = sys.argv[1]
-    if color_name in COLORS:
-        color_hex = COLORS[color_name]
-        set_terminal_color(color_hex)
-    else:
-        print(f"Error: Unknown color '{color_name}'")
+    search_term = sys.argv[1]
+
+    if search_term in [ '-v', '-version', '--version', 'version']:
+        print('rc 2.0.0 (08-Oct-2025)')
+        sys.exit(0)
+    elif search_term in ['--list', 'list', 'help', '--help', '-h', '-help']:
         print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
-        sys.exit(1)
+        sys.exit(0)
+
+    # First check for exact match
+    if search_term in COLORS:
+        color_hex = COLORS[search_term]
+        set_terminal_color(color_hex)
+        color_name = search_term
+    else:
+        # Search for colors containing the search term
+        matches = [name for name in COLORS.keys() if search_term in name]
+
+        if matches:
+            # Pick a random match
+            color_name = random.choice(matches)
+            color_hex = COLORS[color_name]
+            set_terminal_color(color_hex)
+        else:
+            print(f"Error: No colors matching '{search_term}'")
+            print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+            sys.exit(1)
 else:
     # Pick a random color
     color_name = random.choice(list(COLORS.keys()))
     color_hex = COLORS[color_name]
     set_terminal_color(color_hex)
+
