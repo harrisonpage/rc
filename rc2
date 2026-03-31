@@ -40,11 +40,6 @@ COLORS = {
     "sienna-brown": "A0522D",
     "firebrick-brown": "A52A2A",
 
-    # Reds
-    "red": "d04437",
-    "red-alert": "762423",
-    "red-sands": "79251D",
-
     # Purples/Pinks
     "unikitty-pink": "FC71D0",
 
@@ -57,24 +52,25 @@ COLORS = {
     "novel-cream": "DFDAC3",
 
     # Terminal themes (dark greys/blacks)
-    "dracula-grey": "282A36",
-    "gruvbox-grey": "282828",
     "nord-grey": "2e3440",
     "monokai-grey": "272822",
     "solarized-grey": "002b36",
     "mariana-grey": "252E36",
     "seafoam-grey": "243335",
     "argonaut-grey": "0D0F18",
-    "alucard-grey": "1A1A24",
-    "belafonte-night-purple": "20111A",
     "fishtank-blue": "073F80",
     "ocean-blue-dark": "214EBC",
     "borland-blue": "0000A3",
     "grass-green": "13773D",
     "moss-green": "107F40",
     "lime-black": "0E100A",
-    "monoliisa-black": "110B0D",
     "zenburn-grey": "3F3F3F",
+    "tokyo-night": "1A1B26",
+    "material-grey": "212121",
+    "onedark-grey": "282C34",
+    "ayu-mirage": "1F2430",
+    "everforest-grey": "2D353B",
+    "spacegray-dark": "2B2B2B",
 }
 
 def generate_preview():
@@ -247,9 +243,16 @@ if len(sys.argv) > 1:
     elif search_term in ['--list', 'list', 'help', '--help', '-h', '-help']:
         print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
         sys.exit(0)
+    elif search_term in ['light', 'dark']:
+        is_dark = search_term == 'dark'
+        filtered = {name: hex for name, hex in COLORS.items()
+                    if (calculate_luminance(hex) <= 0.08) == is_dark}
+        color_name = random.choice(list(filtered.keys()))
+        color_hex = filtered[color_name]
+        set_terminal_color(color_hex)
 
     # First check for exact match
-    if search_term in COLORS:
+    elif search_term in COLORS:
         color_hex = COLORS[search_term]
         set_terminal_color(color_hex)
         color_name = search_term
@@ -272,3 +275,4 @@ else:
     color_hex = COLORS[color_name]
     set_terminal_color(color_hex)
 
+print(color_hex)
