@@ -14,7 +14,6 @@ COLORS = {
     "midnight-blue": "2C3E50",
     "ocean-blue": "21759B",
     "linkedin-blue": "0077B5",
-    "night-owl-blue": "011627",
 
     # Greens
     "forest-green": "14892c",
@@ -40,9 +39,6 @@ COLORS = {
     "sienna-brown": "A0522D",
     "firebrick-brown": "A52A2A",
 
-    # Purples/Pinks
-    "unikitty-pink": "FC71D0",
-
     # Yellows
     "yellow": "b58900",
     "man-page-yellow": "FEF49C",
@@ -52,7 +48,6 @@ COLORS = {
     "novel-cream": "DFDAC3",
 
     # Terminal themes (dark greys/blacks)
-    "nord-grey": "2e3440",
     "monokai-grey": "272822",
     "solarized-grey": "002b36",
     "mariana-grey": "252E36",
@@ -66,8 +61,6 @@ COLORS = {
     "lime-black": "0E100A",
     "zenburn-grey": "3F3F3F",
     "material-grey": "212121",
-    "onedark-grey": "282C34",
-    "ayu-mirage": "1F2430",
     "everforest-grey": "2D353B",
     "spacegray-dark": "2B2B2B",
 }
