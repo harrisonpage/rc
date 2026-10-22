@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""rc3 - set the terminal background to a curated color.
+
+Uses OSC escape sequences (terminal-native, works over ssh, works in
+Ghostty/kitty/WezTerm/Alacritty) and falls back to AppleScript when
+running under Terminal.app, which does not honor OSC 10/11.
+"""
+
+import os
+import random
+import sys
+
+# Curated color palette
+COLORS = {
+    # Blues
+    "jira-blue": "205081",
+    "slate-blue": "657b83",
+    "bright-blue": "3498DB",
+    "belize-blue": "2980B9",
+    "midnight-blue": "2C3E50",
+    "ocean-blue": "21759B",
+    "linkedin-blue": "0077B5",
+
+    # Greens
+    "forest-green": "14892c",
+    "emerald-green": "2ECC71",
+    "green-sea": "16A085",
+    "nephritis-green": "27AE60",
+    "turquoise-green": "1ABC9C",
+
+    # Greys
+    "silver-grey": "707070",
+    "dark-grey": "333333",
+    "medium-grey": "737373",
+    "asbestos-grey": "7F8C8D",
+    "wet-asphalt-grey": "34495E",
+    "dark-slate-grey": "34465D",
+    "cool-grey": "647687",
+    "sage-grey": "758480",
+
+    # Browns
+    "tan-brown": "CD853F",
+    "chocolate-brown": "D2691E",
+    "saddle-brown": "8B4513",
+    "sienna-brown": "A0522D",
+    "firebrick-brown": "A52A2A",
+
+    # Yellows
+    "yellow": "b58900",
+    "man-page-yellow": "FEF49C",
+
+    # Light/Cream
+    "belafonte-day": "D4CCB9",
+    "novel-cream": "DFDAC3",
+
+    # Terminal themes (dark greys/blacks)
+    "monokai-grey": "272822",
+    "solarized-grey": "002b36",
+    "mariana-grey": "252E36",
+    "seafoam-grey": "243335",
+    "argonaut-grey": "0D0F18",
+    "fishtank-blue": "073F80",
+    "ocean-blue-dark": "214EBC",
+    "borland-blue": "0000A3",
+    "grass-green": "13773D",
+    "moss-green": "107F40",
+    "lime-black": "0E100A",
+    "zenburn-grey": "3F3F3F",
+    "material-grey": "212121",
+    "everforest-grey": "2D353B",
+    "spacegray-dark": "2B2B2B",
+}
+
+VERSION = "rc 3.0.0 (21-Sep-2026)"
+
+
+def calculate_luminance(color_hex):
+    """Calculate relative luminance of a color (0-1 scale)"""
+    r = int(color_hex[0:2], 16) / 255
+    g = int(color_hex[2:4], 16) / 255
+    b = int(color_hex[4:6], 16) / 255
+
+    def adjust(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r = adjust(r)
+    g = adjust(g)
+    b = adjust(b)
+
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def get_contrasting_text_color(bg_color_hex):
+    """Returns black or white hex based on background luminance"""
+    return "000000" if calculate_luminance(bg_color_hex) > 0.5 else "FFFFFF"
+
+
+# --- terminal plumbing -----------------------------------------------------
+
+def passthrough(seq):
+    """Wrap an escape sequence so it survives tmux or screen."""
+    if os.environ.get("TMUX"):
+        return "\033Ptmux;" + seq.replace("\033", "\033\033") + "\033\\"
+    if os.environ.get("TERM", "").startswith("screen"):
+        return "\033P" + seq + "\033\\"
+    return seq
+
+
+def write_tty(data):
+    """Write to the controlling terminal, not stdout, so piping still works."""
+    try:
+        with open("/dev/tty", "w") as tty:
+            tty.write(data)
+            tty.flush()
+        return True
+    except OSError:
+        return False
+
+
+def set_colors_osc(bg_hex, fg_hex):
+    """Set background (OSC 11), foreground (OSC 10) and cursor (OSC 12)."""
+    seqs = (
+        passthrough(f"\033]11;#{bg_hex}\007")
+        + passthrough(f"\033]10;#{fg_hex}\007")
+        + passthrough(f"\033]12;#{fg_hex}\007")
+    )
+    return write_tty(seqs)
+
+
+def reset_colors_osc():
+    """Reset foreground/background/cursor to the profile defaults."""
+    seqs = (
+        passthrough("\033]110\007")
+        + passthrough("\033]111\007")
+        + passthrough("\033]112\007")
+    )
+    return write_tty(seqs)
+
+
+def set_colors_applescript(bg_hex, fg_hex):
+    """Terminal.app ignores OSC 10/11, so drive it via AppleScript."""
+    bg_r, bg_g, bg_b = (int(bg_hex[i:i + 2], 16) * 257 for i in (0, 2, 4))
+    fg_r, fg_g, fg_b = (int(fg_hex[i:i + 2], 16) * 257 for i in (0, 2, 4))
+    transparency = -5000
+
+    script = f"""
+tell application "terminal"
+        tell window 1
+                set background color to {{{bg_r}, {bg_g}, {bg_b}, {transparency}}}
+                set normal text color to {{{fg_r}, {fg_g}, {fg_b}, {transparency}}}
+        end tell
+end tell
+"""
+    p = os.popen("/usr/bin/osascript", "w")
+    p.write(script)
+    return p.close() is None
+
+
+def is_apple_terminal():
+    return os.environ.get("TERM_PROGRAM") == "Apple_Terminal"
+
+
+def set_terminal_color(color_hex):
+    """Set the terminal background and an appropriate foreground color"""
+    fg_hex = get_contrasting_text_color(color_hex)
+
+    if is_apple_terminal():
+        ok = set_colors_applescript(color_hex, fg_hex)
+    else:
+        ok = set_colors_osc(color_hex, fg_hex)
+
+    if not ok:
+        print("Error: could not talk to the terminal", file=sys.stderr)
+        sys.exit(1)
+
+
+# --- preview ---------------------------------------------------------------
+
+def generate_preview():
+    """Generate an HTML preview of all colors"""
+    html = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>rc3 Color Palette</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+        }
+        .swatch {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .swatch:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .color-box {
+            height: 120px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .preview-text {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .color-info {
+            padding: 15px;
+        }
+        .color-hex {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .color-name {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>rc3 Color Palette</h1>
+    <div class="container">
+"""
+
+    for name, color_hex in COLORS.items():
+        text_color = get_contrasting_text_color(color_hex)
+
+        html += f"""        <div class="swatch">
+            <div class="color-box" style="background-color: #{color_hex};">
+                <div class="preview-text" style="color: #{text_color};">
+$ ls -la<br>
+total 42<br>
+drwxr-xr-x
+                </div>
+            </div>
+            <div class="color-info">
+                <div class="color-hex">#{color_hex.upper()}</div>
+                <div class="color-name">{name}</div>
+            </div>
+        </div>
+"""
+
+    html += """    </div>
+</body>
+</html>
+"""
+
+    with open("preview.html", "w") as f:
+        f.write(html)
+
+    print("Generated preview.html")
+
+
+# --- cli -------------------------------------------------------------------
+
+def main():
+    args = sys.argv[1:]
+
+    if not args:
+        color_name = random.choice(list(COLORS.keys()))
+        set_terminal_color(COLORS[color_name])
+        print(COLORS[color_name])
+        return
+
+    search_term = args[0]
+
+    if search_term == "preview":
+        generate_preview()
+        return
+
+    if search_term in ("-v", "-version", "--version", "version"):
+        print(VERSION)
+        return
+
+    if search_term in ("--list", "list", "help", "--help", "-h", "-help"):
+        print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+        return
+
+    if search_term == "reset":
+        if is_apple_terminal():
+            print("Error: reset is not supported under Terminal.app",
+                  file=sys.stderr)
+            sys.exit(1)
+        if not reset_colors_osc():
+            print("Error: could not talk to the terminal", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    if search_term in ("light", "dark"):
+        is_dark = search_term == "dark"
+        filtered = {name: value for name, value in COLORS.items()
+                    if (calculate_luminance(value) <= 0.08) == is_dark}
+        if not filtered:
+            print(f"Error: no {search_term} colors in the palette",
+                  file=sys.stderr)
+            sys.exit(1)
+        color_name = random.choice(list(filtered.keys()))
+    elif search_term in COLORS:
+        color_name = search_term
+    else:
+        matches = [name for name in COLORS if search_term in name]
+        if not matches:
+            print(f"Error: No colors matching '{search_term}'")
+            print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+            sys.exit(1)
+        color_name = random.choice(matches)
+
+    set_terminal_color(COLORS[color_name])
+    print(COLORS[color_name])
+
+
+if __name__ == "__main__":
+    main()
