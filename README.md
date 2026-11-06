@@ -7,6 +7,12 @@ rc2 is an upgrade:
 * 'rc2 preview' generates preview.html 
 * 'rc2 green-sea' applies a named color
 
+## rc3
+
+rc3 is the current one. It reads its colors from `~/.config/fledermaus/colors.txt` (shared
+with Fledermaus's Cmd-R and View > Colors), one `name hex` per line, `#` lines are comments.
+Without that file it uses its built-in palette.
+
 ## shortcuts
 
 ```bash

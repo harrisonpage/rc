@@ -8,9 +8,14 @@ running under Terminal.app, which does not honor OSC 10/11.
 
 import os
 import random
+import string
 import sys
 
-# Curated color palette
+# Shared with Fledermaus (Cmd-R, View > Colors). Each line: name, then hex;
+# "#" lines are comments (section headings in Fledermaus's menu).
+COLORS_FILE = os.path.expanduser("~/.config/fledermaus/colors.txt")
+
+# Curated color palette, used when COLORS_FILE is missing or has no colors
 COLORS = {
     # Blues
     "jira-blue": "205081",
@@ -71,7 +76,31 @@ COLORS = {
     "spacegray-dark": "2B2B2B",
 }
 
-VERSION = "rc 3.0.0 (21-Sep-2026)"
+VERSION = "rc 3.1.0 (06-Nov-2026)"
+
+
+def load_colors():
+    """Colors from COLORS_FILE, parsed the way Fledermaus parses it:
+    bad lines skipped, the first of a repeated name wins."""
+    try:
+        with open(COLORS_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return COLORS
+    colors = {}
+    seen = set()
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 2 or fields[0].startswith("#"):
+            continue
+        name, value = fields[0], fields[1]
+        if value.startswith("#"):
+            value = value[1:]
+        if (len(value) == 6 and all(c in string.hexdigits for c in value)
+                and name.lower() not in seen):
+            seen.add(name.lower())
+            colors[name] = value
+    return colors or COLORS
 
 
 def calculate_luminance(color_hex):
@@ -246,7 +275,7 @@ def generate_preview():
     <div class="container">
 """
 
-    for name, color_hex in COLORS.items():
+    for name, color_hex in load_colors().items():
         text_color = get_contrasting_text_color(color_hex)
 
         html += f"""        <div class="swatch">
@@ -279,11 +308,12 @@ drwxr-xr-x
 
 def main():
     args = sys.argv[1:]
+    colors = load_colors()
 
     if not args:
-        color_name = random.choice(list(COLORS.keys()))
-        set_terminal_color(COLORS[color_name])
-        print(COLORS[color_name])
+        color_name = random.choice(list(colors.keys()))
+        set_terminal_color(colors[color_name])
+        print(colors[color_name])
         return
 
     search_term = args[0]
@@ -297,7 +327,7 @@ def main():
         return
 
     if search_term in ("--list", "list", "help", "--help", "-h", "-help"):
-        print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+        print(f"Available colors: {', '.join(sorted(colors.keys()))}")
         return
 
     if search_term == "reset":
@@ -312,25 +342,25 @@ def main():
 
     if search_term in ("light", "dark"):
         is_dark = search_term == "dark"
-        filtered = {name: value for name, value in COLORS.items()
+        filtered = {name: value for name, value in colors.items()
                     if (calculate_luminance(value) <= 0.08) == is_dark}
         if not filtered:
             print(f"Error: no {search_term} colors in the palette",
                   file=sys.stderr)
             sys.exit(1)
         color_name = random.choice(list(filtered.keys()))
-    elif search_term in COLORS:
+    elif search_term in colors:
         color_name = search_term
     else:
-        matches = [name for name in COLORS if search_term in name]
+        matches = [name for name in colors if search_term in name]
         if not matches:
             print(f"Error: No colors matching '{search_term}'")
-            print(f"Available colors: {', '.join(sorted(COLORS.keys()))}")
+            print(f"Available colors: {', '.join(sorted(colors.keys()))}")
             sys.exit(1)
         color_name = random.choice(matches)
 
-    set_terminal_color(COLORS[color_name])
-    print(COLORS[color_name])
+    set_terminal_color(colors[color_name])
+    print(colors[color_name])
 
 
 if __name__ == "__main__":
